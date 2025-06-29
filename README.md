@@ -1,15 +1,92 @@
-# README.md	(tab-indented code fences instead of ```)
-	Archive-Curator is a CLI + Flask tool that pulls 20–30 fresh,
-	randomised Internet Archive videos every day, stores rich metadata
-	in SQLite, auto-downloads up to 50 GB/day, and learns your taste
-	based on 1-10 ratings.
+# TimeTunnel TV
 
-	Usage
-	-----
-	1. make install        # install deps with Poetry
-	2. poetry run curator fetch     # grab today’s haul
-	3. poetry run curator web       # open http://<host>:5000
-	4. poetry run curator rate <id> <score>
+TimeTunnel TV turns any Linux box (CPU-only or CUDA) into a personalised worm-
+hole through the Internet Archive. A daily job fetches 20-30 videos that match
+your seed keywords, stores full metadata in SQLite, auto-downloads within a
+50 GB/day cap, and refines future picks from your 1-10 ratings. You interact
+either from a rich CLI or a zero-config Flask site on your LAN.
 
-	Config (~/.curator/config.toml) lets you change:
-	  daily_candidates, min/max length, seed_keywords, download_cap_gb …
+## Features
+* Daily candidate pull via IA **Advanced Search + Scrape** APIs  
+* Configurable duration window (5 s - 5 h default) & keyword bias  
+* Rich metadata persistence (`items`, `ratings`, `downloads` tables)  
+* Auto-download best H.264 file; cap enforced per UTC-day  
+* Sentence-Transformers embeddings (CUDA if available) for taste learning  
+* Robust `[i]/[!]/[DEBUG]/[x]` logging and WAL-backed SQLite  
+* Self-contained: only Python 3.12+, Requests, Flask, Sentence-Transformers  
+* Makefile + install.sh for one-shot bootstrap; Dockerfile coming v1.0
+
+## Quick-start
+	tab./install.sh				# installs pipx → Poetry → deps
+	tabpoetry run curator fetch -d ~/archive_videos	# grab today’s haul
+	tabpoetry run curator web				# browse http://host:5000
+	tabpoetry run curator rate <IA_ID> 7			# CLI rating
+
+## Directory layout
+project/
+├─ Makefile
+├─ install.sh
+├─ pyproject.toml
+├─ README.md
+└─ curator/
+    ├─ config.py	# load + merge ~/.curator/config.toml
+    ├─ db.py		# SQLite schema & helpers
+    ├─ fetch.py		# API queries + downloader
+    ├─ recommend.py	# cosine-sim taste engine
+    ├─ cli.py		# argparse front-end
+    └─ web.py		# Flask UI
+
+
+## Configuration (`~/.curator/config.toml`)
+	tabdaily_candidates	= 30
+	tabmin_seconds		= 5
+	tabmax_seconds		= 18000		# 5 h
+	tabseed_keywords	= ["funny","crazy","interesting", … ]
+	tabdownload_cap_gb	= 50
+	tabrps_limit		= 1.0		# polite API rate
+
+## CLI cheatsheet
+	tabcurator fetch -d ~/archive_videos		# daily sync
+	tabcurator list -n 20				# recent items
+	tabcurator rate <id> 9				# score 1-10
+	tabcurator recommend -n 10			# show similarity ranking
+
+## Web UI endpoints
+	/		today’s picks + 10 buttons (1-10) per video  
+	/rate/<id>/<score>	HTMX POST, no reload  
+
+## Internals
+* **Fetcher** builds a Lucene query, random-seeds sorting, enriches each doc
+  with `/metadata`, picks the best playable file, and streams it to disk while
+  updating the `downloads` table.
+* **Recommender** embeds title + description to 384-dim vectors and stores
+  nothing—vectors live in RAM; preference vector is the rating-weighted mean.
+* **Scheduler** (via cron, systemd-timer, or Kubernetes CronJob) just calls
+  `curator fetch`; the rest is on-demand.
+
+## Extending
+* Swap `sentence-transformers` for a local LLM embedding file—just edit
+  `recommend.py`→`MODEL`.
+* Add more tables (e.g. `users`) or rating-weighted decay to taste vector.
+* Dockerise: base on `python:3.12-slim`, expose `5000`, mount `~/.curator`.
+
+## Logging
+	tab2025-06-29 18:51:03 [INFO] curator.fetch: [i] AdvancedSearch …
+	tab2025-06-29 18:51:14 [WARNING] curator.fetch: [!] Cap hit …
+
+## Troubleshooting
+* **Makefile “missing separator”**: ensure recipe lines start with TAB.  
+* **Poetry “group” error**: upgrade Poetry ≥ 1.2 or replace with
+  `[tool.poetry.dev-dependencies]`.
+
+## License
+MIT — do what you want, just don’t melt the Archive’s servers.
+
+## Roadmap
+* CUDA-accelerated embeddings on the 3080  
+* Per-user profiles & auth tokens  
+* Docker Compose + Grafana metrics dashboard  
+* Optional Plex-style NFO export
+
+TimeTunnel TV: because YouTube’s algorithm forgot the good stuff.
+
