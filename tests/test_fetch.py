@@ -1,6 +1,7 @@
 from curator import db, USER_AGENT
 from curator.config import Config
 import pytest
+import datetime
 
 
 class FakeResponse:
@@ -232,3 +233,32 @@ def test_best_h264_file_none():
     best = fetch._best_h264_file(files)
 
     assert best is None
+
+
+def test_daily_downloaded_bytes(monkeypatch, tmp_path):
+    """Only today's downloads are summed."""
+    db_path = tmp_path / "daily.db"
+    monkeypatch.setattr(db, "DB_PATH", db_path)
+    db.init_db(db_path)
+
+    orig_record_dl = db.record_download
+    monkeypatch.setattr(
+        db,
+        "record_download",
+        lambda *a, **kw: orig_record_dl(*a, db_path=db_path, **kw),
+    )
+    orig_get_conn = db.get_connection
+    monkeypatch.setattr(db, "get_connection", lambda db_path=db_path: orig_get_conn(db_path))
+
+    from curator import fetch
+
+    monkeypatch.setattr(fetch.db, "get_connection", lambda db_path=db_path: orig_get_conn(db_path))
+
+    today = datetime.datetime.utcnow().date()
+    yesterday = today - datetime.timedelta(days=1)
+
+    db.record_download("t1", 100, downloaded_at=f"{today} 00:00:00")
+    db.record_download("y1", 200, downloaded_at=f"{yesterday} 12:00:00")
+    db.record_download("t2", 300, downloaded_at=f"{today} 23:59:59")
+
+    assert fetch._daily_downloaded_bytes() == 400
