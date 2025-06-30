@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import logging
 
-__all__ = ("__version__",)
+__all__ = ("__version__", "USER_AGENT")
 __version__ = "0.1.0"
+
+# Constant used for HTTP requests
+USER_AGENT = "TimeTunnelTV/0.1"
 
 # Configure logging once package is imported. We keep the format simple
 # but swap level names to match the README's `[i]/[!]/[DEBUG]/[x]` style.
