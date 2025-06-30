@@ -1,4 +1,3 @@
-import pytest
 from curator import db
 from curator.web import create_app
 
