@@ -70,6 +70,40 @@ project/
 * **Scheduler** (via cron, systemd-timer, or Kubernetes CronJob) just calls
   `curator fetch`; the rest is on-demand.
 
+## Scheduling
+Run `poetry run curator fetch` once per day so new videos are picked up. Use
+`-d` to point at a directory with plenty of free space (e.g. `/srv/timetunnel`).
+The host must have Internet access for downloads to work.
+
+### Cron example
+        30 2 * * * cd /opt/TimeTunnelTV && poetry run curator fetch -d /srv/timetunnel
+
+### Systemd service and timer
+Create ``timetunnel.service``:
+
+        [Unit]
+        Description=TimeTunnel daily fetch
+        After=network-online.target
+
+        [Service]
+        Type=oneshot
+        WorkingDirectory=/opt/TimeTunnelTV
+        ExecStart=/usr/local/bin/poetry run curator fetch -d /srv/timetunnel
+
+And ``timetunnel.timer``:
+
+        [Unit]
+        Description=Run TimeTunnel each day
+
+        [Timer]
+        OnCalendar=daily
+        Persistent=true
+
+        [Install]
+        WantedBy=timers.target
+
+Enable with ``systemctl enable --now timetunnel.timer``.
+
 ## Extending
 * Swap `sentence-transformers` for a local LLM embedding file—just edit
   `recommend.py`→`MODEL`.
