@@ -1,5 +1,6 @@
 from curator import db
 from curator.config import Config
+import pytest
 
 
 class FakeResponse:
@@ -123,3 +124,62 @@ def test_timeout_passed(monkeypatch, tmp_path):
     ids = fetch.fetch_candidates(cfg)
     fetch.download_item(ids[0], tmp_path, cfg)
     assert all(t == cfg.timeout for t in calls)
+
+
+def test_partial_download_cleanup(monkeypatch, tmp_path):
+    db_path = tmp_path / "cap.db"
+    monkeypatch.setattr(db, "DB_PATH", db_path)
+    db.init_db(db_path)
+
+    orig_record_dl = db.record_download
+    monkeypatch.setattr(
+        db,
+        "record_download",
+        lambda *args, **kwargs: orig_record_dl(*args, db_path=db_path),
+    )
+    orig_get_conn = db.get_connection
+    monkeypatch.setattr(
+        db, "get_connection", lambda db_path=db_path: orig_get_conn(db_path)
+    )
+
+    from curator import fetch
+
+    monkeypatch.setattr(
+        fetch.db, "get_connection", lambda db_path=db_path: orig_get_conn(db_path)
+    )
+    monkeypatch.setattr(fetch, "_sleep_for_rps", lambda x: None)
+
+    db.insert_item(
+        "vid2",
+        "title",
+        "desc",
+        10,
+        "http://example.com/file.bin",
+        db_path=db_path,
+    )
+
+    class StreamResp:
+        def __init__(self, chunks):
+            self.chunks = chunks
+            self.status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def iter_content(self, chunk_size=8192):
+            for c in self.chunks:
+                yield c
+
+        def close(self):
+            pass
+
+    def fake_get(url, stream=False, timeout=None):
+        return StreamResp([b"a" * 150, b"b" * 100])
+
+    monkeypatch.setattr(fetch.requests, "get", fake_get)
+
+    cfg = Config(download_cap_gb=0.0000002, seed_keywords=[], rps_limit=0)
+    with pytest.raises(RuntimeError):
+        fetch.download_item("vid2", tmp_path, cfg)
+
+    assert not (tmp_path / "file.bin").exists()
