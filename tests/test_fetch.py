@@ -1,4 +1,4 @@
-from curator import db
+from curator import db, USER_AGENT
 from curator.config import Config
 import pytest
 
@@ -32,7 +32,7 @@ def test_fetch_candidates(monkeypatch, tmp_path):
 
     from curator import fetch
 
-    def fake_get(url, params=None, stream=False, timeout=None):
+    def fake_get(url, params=None, stream=False, timeout=None, headers=None):
         if "advancedsearch" in url:
             data = {
                 "response": {
@@ -64,6 +64,24 @@ def test_fetch_candidates(monkeypatch, tmp_path):
     assert items[0]["id"] == "id1"
 
 
+def test_user_agent_header(monkeypatch):
+    from curator import fetch
+
+    calls = []
+
+    def fake_get(url, params=None, stream=False, timeout=None, headers=None):
+        calls.append(headers)
+        return FakeResponse({"response": {"docs": []}})
+
+    monkeypatch.setattr(fetch, "_sleep_for_rps", lambda x: None)
+    monkeypatch.setattr(fetch.requests, "get", fake_get)
+
+    cfg = Config(daily_candidates=1, seed_keywords=["x"], rps_limit=0)
+    fetch.fetch_candidates(cfg)
+
+    assert calls and calls[0].get("User-Agent") == USER_AGENT
+
+
 def test_timeout_passed(monkeypatch, tmp_path):
     db_path = tmp_path / "timeout.db"
     monkeypatch.setattr(db, "DB_PATH", db_path)
@@ -92,7 +110,7 @@ def test_timeout_passed(monkeypatch, tmp_path):
 
     calls = []
 
-    def fake_get(url, params=None, stream=False, timeout=None):
+    def fake_get(url, params=None, stream=False, timeout=None, headers=None):
         calls.append(timeout)
         if "advancedsearch" in url:
             data = {
@@ -173,7 +191,7 @@ def test_partial_download_cleanup(monkeypatch, tmp_path):
         def close(self):
             pass
 
-    def fake_get(url, stream=False, timeout=None):
+    def fake_get(url, stream=False, timeout=None, headers=None):
         return StreamResp([b"a" * 150, b"b" * 100])
 
     monkeypatch.setattr(fetch.requests, "get", fake_get)

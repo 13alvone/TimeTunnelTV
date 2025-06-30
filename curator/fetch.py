@@ -9,8 +9,12 @@ import logging
 
 import requests
 
+from . import USER_AGENT
+
 from . import db
 from .config import Config
+
+HEADERS = {"User-Agent": USER_AGENT}
 
 
 logger = logging.getLogger(__name__)
@@ -61,7 +65,10 @@ def fetch_candidates(cfg: Config) -> List[str]:
 
     _sleep_for_rps(cfg.rps_limit)
     res = requests.get(
-        "https://archive.org/advancedsearch.php", params=params, timeout=cfg.timeout
+        "https://archive.org/advancedsearch.php",
+        params=params,
+        timeout=cfg.timeout,
+        headers=HEADERS,
     )
     res.raise_for_status()
     docs = res.json()["response"]["docs"]
@@ -74,7 +81,9 @@ def fetch_candidates(cfg: Config) -> List[str]:
         logger.debug("fetching metadata for %s", identifier)
         _sleep_for_rps(cfg.rps_limit)
         meta = requests.get(
-            f"https://archive.org/metadata/{identifier}", timeout=cfg.timeout
+            f"https://archive.org/metadata/{identifier}",
+            timeout=cfg.timeout,
+            headers=HEADERS,
         )
         if meta.status_code != 200:
             continue
@@ -125,7 +134,7 @@ def download_item(item_id: str, dst_dir: str | Path, cfg: Config) -> Path:
         raise RuntimeError("daily download cap reached")
 
     _sleep_for_rps(cfg.rps_limit)
-    r = requests.get(url, stream=True, timeout=cfg.timeout)
+    r = requests.get(url, stream=True, timeout=cfg.timeout, headers=HEADERS)
     r.raise_for_status()
 
     local = dst_path / Path(url).name
