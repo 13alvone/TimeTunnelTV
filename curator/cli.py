@@ -56,7 +56,12 @@ def list_items(n: int) -> None:
 @click.argument("score", type=int)
 def rate(item_id: str, score: int) -> None:
     """Record a rating for an item."""
-    db.record_rating(item_id, score)
+    try:
+        db.record_rating(item_id, score)
+    except ValueError as e:
+        logger.error("[!] %s", e)
+        click.echo(str(e), err=True)
+        raise SystemExit(1)
     logger.info("[i] rated %s %d", item_id, score)
     click.echo(f"Rated {item_id} {score}")
 
