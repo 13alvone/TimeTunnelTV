@@ -130,16 +130,21 @@ def download_item(item_id: str, dst_dir: str | Path, cfg: Config) -> Path:
 
     local = dst_path / Path(url).name
     size = 0
-    with local.open("wb") as f:
-        for chunk in r.iter_content(chunk_size=8192):
-            if not chunk:
-                continue
-            size += len(chunk)
-            if downloaded + size > cap_bytes:
-                r.close()
-                logger.warning("[!] cap reached mid-download")
-                raise RuntimeError("download cap reached while downloading")
-            f.write(chunk)
+    try:
+        with local.open("wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                if not chunk:
+                    continue
+                size += len(chunk)
+                if downloaded + size > cap_bytes:
+                    r.close()
+                    logger.warning("[!] cap reached mid-download")
+                    raise RuntimeError("download cap reached while downloading")
+                f.write(chunk)
+    except RuntimeError as e:
+        if "download cap reached while downloading" in str(e) and local.exists():
+            local.unlink()
+        raise
 
     db.record_download(item_id, size)
     logger.info("[i] wrote %s bytes", size)
