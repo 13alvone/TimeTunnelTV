@@ -23,7 +23,11 @@ def create_app() -> Flask:
 
     @app.post("/rate/<item_id>/<int:score>")
     def rate(item_id: str, score: int):
-        db.record_rating(item_id, score)
+        try:
+            db.record_rating(item_id, score)
+        except ValueError as e:
+            logger.warning("[!] %s", e)
+            return str(e), 400
         logger.info("[i] rated %s %d via web", item_id, score)
         return render_template("rated_fragment.html", score=score)
 

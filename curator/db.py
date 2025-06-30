@@ -80,6 +80,8 @@ def record_rating(
     db_path: Path = DB_PATH,
 ) -> None:
     """Record a rating for an item."""
+    if not 1 <= rating <= 10:
+        raise ValueError("rating must be between 1 and 10")
     with get_connection(db_path) as conn:
         conn.execute(
             """
