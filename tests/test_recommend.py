@@ -11,6 +11,7 @@ if "requests" in sys.modules and not hasattr(sys.modules["requests"], "HTTPError
     sys.modules.pop("requests")
 if "requests" not in sys.modules:
     import importlib as _imp
+
     sys.modules["requests"] = _imp.import_module("requests")
 
 from curator import db
@@ -38,7 +39,9 @@ def setup_rec_db(tmp_path, monkeypatch):
 
     # patch db.get_connection used inside recommend
     orig_get_conn = db.get_connection
-    monkeypatch.setattr(db, "get_connection", lambda db_path=db_path: orig_get_conn(db_path))
+    monkeypatch.setattr(
+        db, "get_connection", lambda db_path=db_path: orig_get_conn(db_path)
+    )
     return db_path
 
 
