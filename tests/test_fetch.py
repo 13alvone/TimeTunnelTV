@@ -201,3 +201,34 @@ def test_partial_download_cleanup(monkeypatch, tmp_path):
         fetch.download_item("vid2", tmp_path, cfg)
 
     assert not (tmp_path / "file.bin").exists()
+
+
+def test_best_h264_file():
+    """Select the largest playable H.264 file."""
+    from curator import fetch
+
+    files = [
+        {"name": "a.mov", "format": "QuickTime", "size": "5"},
+        {"name": "b.mp4", "format": "H.264", "size": "10"},
+        {"name": "c.mp4", "format": "mpeg4", "size": "30"},
+        {"name": "d.mp4", "format": "VP9", "size": "40"},
+        {"name": "e.mp4", "format": "h264", "size": "50"},
+    ]
+
+    best = fetch._best_h264_file(files)
+
+    assert best == ("e.mp4", 50)
+
+
+def test_best_h264_file_none():
+    """Return ``None`` when no suitable file exists."""
+    from curator import fetch
+
+    files = [
+        {"name": "a.mkv", "format": "VP9", "size": "5"},
+        {"name": "b.webm", "format": "vp8", "size": "10"},
+    ]
+
+    best = fetch._best_h264_file(files)
+
+    assert best is None
