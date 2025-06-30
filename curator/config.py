@@ -17,6 +17,7 @@ class Config:
     seed_keywords: List[str] = field(default_factory=list)
     download_cap_gb: int = 50
     rps_limit: float = 1.0
+    timeout: float = 10.0
 
 
 DEFAULT_CONFIG = Config(

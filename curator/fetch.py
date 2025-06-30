@@ -60,7 +60,9 @@ def fetch_candidates(cfg: Config) -> List[str]:
     }
 
     _sleep_for_rps(cfg.rps_limit)
-    res = requests.get("https://archive.org/advancedsearch.php", params=params)
+    res = requests.get(
+        "https://archive.org/advancedsearch.php", params=params, timeout=cfg.timeout
+    )
     res.raise_for_status()
     docs = res.json()["response"]["docs"]
     logger.debug("received %d docs", len(docs))
@@ -71,7 +73,9 @@ def fetch_candidates(cfg: Config) -> List[str]:
         identifier = item["identifier"]
         logger.debug("fetching metadata for %s", identifier)
         _sleep_for_rps(cfg.rps_limit)
-        meta = requests.get(f"https://archive.org/metadata/{identifier}")
+        meta = requests.get(
+            f"https://archive.org/metadata/{identifier}", timeout=cfg.timeout
+        )
         if meta.status_code != 200:
             continue
         files = meta.json().get("files", [])
@@ -121,7 +125,7 @@ def download_item(item_id: str, dst_dir: str | Path, cfg: Config) -> Path:
         raise RuntimeError("daily download cap reached")
 
     _sleep_for_rps(cfg.rps_limit)
-    r = requests.get(url, stream=True)
+    r = requests.get(url, stream=True, timeout=cfg.timeout)
     r.raise_for_status()
 
     local = dst_path / Path(url).name
