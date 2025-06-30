@@ -42,6 +42,12 @@ project/
         make run-server     # launch Flask UI
         make lint           # format with black
 
+## Development setup
+To run the unit tests you'll need the development packages installed. Use
+`make install` to set up a Poetry environment, or `pip install -r requirements.txt`
+if you prefer a plain `pip` workflow. The test suite requires packages such as
+`flask`, `numpy`, and `flask-cors`.
+
 
 ## Configuration (`~/.curator/config.toml`)
 	tabdaily_candidates	= 30
