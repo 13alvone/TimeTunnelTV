@@ -17,10 +17,10 @@ either from a rich CLI or a zero-config Flask site on your LAN.
 * Makefile + install.sh for one-shot bootstrap; Dockerfile coming v1.0
 
 ## Quick-start
-	tab./install.sh				# installs pipx → Poetry → deps
-	tabpoetry run curator fetch -d ~/archive_videos	# grab today’s haul
-	tabpoetry run curator web				# browse http://host:5000
-	tabpoetry run curator rate <IA_ID> 7			# CLI rating
+        ./install.sh                         # installs pipx → Poetry → deps
+        make run-cli                          # run curator fetch
+        make run-server                       # start Flask UI
+        poetry run curator rate <IA_ID> 7     # CLI rating
 
 ## Directory layout
 project/
@@ -35,6 +35,12 @@ project/
     ├─ recommend.py	# cosine-sim taste engine
     ├─ cli.py		# argparse front-end
     └─ web.py		# Flask UI
+
+## Makefile commands
+        make install        # install deps via poetry
+        make run-cli        # run curator fetch
+        make run-server     # launch Flask UI
+        make lint           # format with black
 
 
 ## Configuration (`~/.curator/config.toml`)
