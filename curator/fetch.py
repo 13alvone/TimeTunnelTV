@@ -5,17 +5,25 @@ import time
 from pathlib import Path
 from typing import List, Dict, Any
 
+import logging
+
 import requests
 
 from . import db
 from .config import Config
 
 
+logger = logging.getLogger(__name__)
+
+
 def _sleep_for_rps(rps_limit: float) -> None:
     """Sleep enough to respect requests-per-second limit."""
     if rps_limit <= 0:
         return
-    time.sleep(max(0.0, 1.0 / rps_limit))
+    delay = max(0.0, 1.0 / rps_limit)
+    if delay:
+        logger.debug("sleeping %.2fs for rps", delay)
+        time.sleep(delay)
 
 
 def _best_h264_file(files: List[Dict[str, Any]]) -> tuple[str, int] | None:
@@ -41,6 +49,7 @@ def fetch_candidates(cfg: Config) -> List[str]:
 
     keywords = " OR ".join(cfg.seed_keywords)
     query = f"({keywords}) AND duration:[{cfg.min_seconds} TO {cfg.max_seconds}]"
+    logger.info("[i] query %s", query)
 
     params = {
         "q": query,
@@ -54,11 +63,13 @@ def fetch_candidates(cfg: Config) -> List[str]:
     res = requests.get("https://archive.org/advancedsearch.php", params=params)
     res.raise_for_status()
     docs = res.json()["response"]["docs"]
+    logger.debug("received %d docs", len(docs))
 
     inserted: List[str] = []
 
     for item in docs:
         identifier = item["identifier"]
+        logger.debug("fetching metadata for %s", identifier)
         _sleep_for_rps(cfg.rps_limit)
         meta = requests.get(f"https://archive.org/metadata/{identifier}")
         if meta.status_code != 200:
@@ -73,7 +84,9 @@ def fetch_candidates(cfg: Config) -> List[str]:
         description = item.get("description", "") or ""
         duration = int(float(item.get("duration") or 0))
         db.insert_item(identifier, title, description, duration, url)
+        logger.debug("inserted %s", identifier)
         inserted.append(identifier)
+    logger.info("[i] inserted %d items", len(inserted))
     return inserted
 
 
@@ -99,10 +112,12 @@ def download_item(item_id: str, dst_dir: str | Path, cfg: Config) -> Path:
     if not row:
         raise ValueError(f"item {item_id} not found in database")
     url = row["url"]
+    logger.info("[i] downloading %s", item_id)
 
     downloaded = _daily_downloaded_bytes()
     cap_bytes = cfg.download_cap_gb * 1024**3
     if downloaded >= cap_bytes:
+        logger.warning("[!] cap reached before download")
         raise RuntimeError("daily download cap reached")
 
     _sleep_for_rps(cfg.rps_limit)
@@ -118,8 +133,10 @@ def download_item(item_id: str, dst_dir: str | Path, cfg: Config) -> Path:
             size += len(chunk)
             if downloaded + size > cap_bytes:
                 r.close()
+                logger.warning("[!] cap reached mid-download")
                 raise RuntimeError("download cap reached while downloading")
             f.write(chunk)
 
     db.record_download(item_id, size)
+    logger.info("[i] wrote %s bytes", size)
     return local

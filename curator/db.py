@@ -14,7 +14,9 @@ def get_connection(db_path: Path = DB_PATH) -> Iterable[sqlite3.Connection]:
     """Yield a SQLite connection with WAL mode enabled."""
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL;")
+    mode = conn.execute("PRAGMA journal_mode=WAL;").fetchone()[0]
+    if str(mode).lower() != "wal":
+        raise RuntimeError("WAL mode could not be enabled")
     try:
         yield conn
         conn.commit()

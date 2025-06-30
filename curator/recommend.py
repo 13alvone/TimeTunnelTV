@@ -2,10 +2,15 @@ from __future__ import annotations
 
 from typing import List, Dict
 
+import logging
+
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
 from . import db
+
+
+logger = logging.getLogger(__name__)
 
 # Embedding model (384-dim)
 MODEL = "sentence-transformers/all-MiniLM-L6-v2"
@@ -15,11 +20,13 @@ _model = SentenceTransformer(MODEL)
 
 def embed(text: str) -> np.ndarray:
     """Return normalized 384-dimensional embedding for ``text``."""
+    logger.debug("embedding text of length %d", len(text))
     return _model.encode(text, convert_to_numpy=True, normalize_embeddings=True)
 
 
 def recommend(top_n: int) -> List[dict]:
     """Return ``top_n`` items ranked by similarity to user preferences."""
+    logger.info("[i] computing recommendations")
     with db.get_connection() as conn:
         items = conn.execute("SELECT id, title, description FROM items").fetchall()
         rated_rows = conn.execute("SELECT item_id, rating FROM ratings").fetchall()
@@ -56,4 +63,5 @@ def recommend(top_n: int) -> List[dict]:
     scored = [(float(np.dot(embeddings[row["id"]], preference)), row) for row in items]
     scored.sort(key=lambda x: x[0], reverse=True)
 
+    logger.info("[i] returning top %d recommendations", top_n)
     return [row for _, row in scored[:top_n]]
