@@ -25,11 +25,13 @@ def test_fetch_candidates(monkeypatch, tmp_path):
     db.init_db(db_path)
 
     orig_insert = db.insert_item
-    monkeypatch.setattr(db, "insert_item", lambda *args, **kwargs: orig_insert(*args, db_path=db_path))
+    monkeypatch.setattr(
+        db, "insert_item", lambda *args, **kwargs: orig_insert(*args, db_path=db_path)
+    )
 
     from curator import fetch
 
-    def fake_get(url, params=None, stream=False):
+    def fake_get(url, params=None, stream=False, timeout=None):
         if "advancedsearch" in url:
             data = {
                 "response": {
@@ -45,7 +47,9 @@ def test_fetch_candidates(monkeypatch, tmp_path):
             }
             return FakeResponse(data)
         elif "metadata" in url:
-            return FakeResponse({"files": [{"name": "video.mp4", "format": "h.264", "size": "10"}]})
+            return FakeResponse(
+                {"files": [{"name": "video.mp4", "format": "h.264", "size": "10"}]}
+            )
         else:
             raise RuntimeError("unexpected url" + url)
 
@@ -57,3 +61,65 @@ def test_fetch_candidates(monkeypatch, tmp_path):
     assert ids == ["id1"]
     items = db.list_items(db_path=db_path)
     assert items[0]["id"] == "id1"
+
+
+def test_timeout_passed(monkeypatch, tmp_path):
+    db_path = tmp_path / "timeout.db"
+    monkeypatch.setattr(db, "DB_PATH", db_path)
+    db.init_db(db_path)
+
+    orig_insert = db.insert_item
+    monkeypatch.setattr(
+        db, "insert_item", lambda *args, **kwargs: orig_insert(*args, db_path=db_path)
+    )
+    orig_record_dl = db.record_download
+    monkeypatch.setattr(
+        db,
+        "record_download",
+        lambda *args, **kwargs: orig_record_dl(*args, db_path=db_path),
+    )
+    orig_get_conn = db.get_connection
+    monkeypatch.setattr(
+        db, "get_connection", lambda db_path=db_path: orig_get_conn(db_path)
+    )
+
+    from curator import fetch
+
+    monkeypatch.setattr(
+        fetch.db, "get_connection", lambda db_path=db_path: orig_get_conn(db_path)
+    )
+
+    calls = []
+
+    def fake_get(url, params=None, stream=False, timeout=None):
+        calls.append(timeout)
+        if "advancedsearch" in url:
+            data = {
+                "response": {
+                    "docs": [
+                        {
+                            "identifier": "id1",
+                            "title": "Title",
+                            "description": "Desc",
+                            "duration": 10,
+                        }
+                    ]
+                }
+            }
+            return FakeResponse(data)
+        elif "metadata" in url:
+            return FakeResponse(
+                {"files": [{"name": "video.mp4", "format": "h.264", "size": "10"}]}
+            )
+        elif "download" in url:
+            return FakeResponse(content=b"abc")
+        else:
+            raise RuntimeError("unexpected url" + url)
+
+    monkeypatch.setattr(fetch, "_sleep_for_rps", lambda x: None)
+    monkeypatch.setattr(fetch.requests, "get", fake_get)
+
+    cfg = Config(daily_candidates=1, seed_keywords=["x"], rps_limit=0, timeout=9)
+    ids = fetch.fetch_candidates(cfg)
+    fetch.download_item(ids[0], tmp_path, cfg)
+    assert all(t == cfg.timeout for t in calls)
