@@ -117,6 +117,21 @@ def list_items(limit: int = 100, db_path: Path = DB_PATH) -> List[sqlite3.Row]:
         return cur.fetchall()
 
 
+def list_items_today(limit: int = 100, db_path: Path = DB_PATH) -> List[sqlite3.Row]:
+    """Return today's items ordered by ``added_at`` descending."""
+    with get_connection(db_path) as conn:
+        cur = conn.execute(
+            """
+            SELECT * FROM items
+            WHERE date(added_at, 'utc') = date('now','utc')
+            ORDER BY added_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        )
+        return cur.fetchall()
+
+
 def list_ratings(item_id: str, db_path: Path = DB_PATH) -> List[sqlite3.Row]:
     """Return all ratings for a given ``item_id``."""
     with get_connection(db_path) as conn:

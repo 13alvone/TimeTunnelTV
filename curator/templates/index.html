@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Curator</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <h1>Recent Items</h1>
+  {% for item in items %}
+  <div class="item">
+    <h3>{{ item['title'] }}</h3>
+    <p>{{ item['description'] or '' }}</p>
+    <video width="320" controls src="{{ item['url'] }}"></video>
+    <div class="rating">
+      {% for i in range(1, 11) %}
+        <form hx-post="/rate/{{ item['id'] }}/{{ i }}" hx-target="this" hx-swap="outerHTML" style="display:inline;">
+          <button type="submit">{{ i }}</button>
+        </form>
+      {% endfor %}
+    </div>
+  </div>
+  <hr>
+  {% endfor %}
+</body>
+</html>
