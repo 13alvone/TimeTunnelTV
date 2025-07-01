@@ -14,13 +14,17 @@ either from a rich CLI or a zero-config Flask site on your LAN.
 * Sentence-Transformers embeddings (CUDA if available) for taste learning  
 * Robust `[i]/[!]/[DEBUG]/[x]` logging and WAL-backed SQLite  
 * Self-contained: only Python 3.12+, Requests, Flask, Sentence-Transformers  
-* Makefile + install.sh for one-shot bootstrap; Dockerfile coming v1.0
+* Makefile + install.sh for one-shot bootstrap; Dockerfile provided
 
 ## Quick-start
         ./install.sh                         # installs pipx → Poetry → deps
         make run-cli                          # run curator fetch
         make run-server                       # start Flask UI
         poetry run curator rate <IA_ID> 7     # CLI rating
+
+## Docker
+        docker build -t timetunnel .
+        docker run -p 5000:5000 timetunnel
 
 ## Directory layout
 project/
