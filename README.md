@@ -29,6 +29,7 @@ project/
 ├─ pyproject.toml
 ├─ README.md
 └─ curator/
+    ├─ __init__.py     # package metadata (__version__)
     ├─ config.py	# load + merge ~/.curator/config.toml
     ├─ db.py		# SQLite schema & helpers
     ├─ fetch.py		# API queries + downloader
