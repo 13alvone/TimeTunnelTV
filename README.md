@@ -58,6 +58,10 @@ if you prefer a plain `pip` workflow. The test suite requires packages such as
 	tabdownload_cap_gb	= 50
 	tabrps_limit		= 1.0		# polite API rate
 
+### Environment variable
+Set `CURATOR_DB_PATH` to change where the SQLite database is stored. When
+unset, the default `curator.db` in the current directory is used.
+
 ## CLI cheatsheet
 	tabcurator fetch -d ~/archive_videos		# daily sync
 	tabcurator list -n 20				# recent items

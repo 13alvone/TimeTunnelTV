@@ -4,14 +4,17 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterable, Optional, List
+import os
 
 
-DB_PATH = Path("curator.db")
+DB_PATH = Path(os.getenv("CURATOR_DB_PATH", "curator.db"))
 
 
 @contextmanager
-def get_connection(db_path: Path = DB_PATH) -> Iterable[sqlite3.Connection]:
+def get_connection(db_path: Optional[Path] = None) -> Iterable[sqlite3.Connection]:
     """Yield a SQLite connection with WAL mode enabled."""
+    if db_path is None:
+        db_path = DB_PATH
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     mode = conn.execute("PRAGMA journal_mode=WAL;").fetchone()[0]
@@ -24,7 +27,7 @@ def get_connection(db_path: Path = DB_PATH) -> Iterable[sqlite3.Connection]:
         conn.close()
 
 
-def init_db(db_path: Path = DB_PATH) -> None:
+def init_db(db_path: Optional[Path] = None) -> None:
     """Initialise the database schema."""
     with get_connection(db_path) as conn:
         conn.executescript(
@@ -60,7 +63,7 @@ def insert_item(
     duration: int,
     url: str,
     added_at: Optional[str] = None,
-    db_path: Path = DB_PATH,
+    db_path: Optional[Path] = None,
 ) -> None:
     """Insert a new item into the ``items`` table."""
     with get_connection(db_path) as conn:
@@ -77,7 +80,7 @@ def record_rating(
     item_id: str,
     rating: int,
     rated_at: Optional[str] = None,
-    db_path: Path = DB_PATH,
+    db_path: Optional[Path] = None,
 ) -> None:
     """Record a rating for an item."""
     if not 1 <= rating <= 10:
@@ -96,7 +99,7 @@ def record_download(
     item_id: str,
     size_bytes: int,
     downloaded_at: Optional[str] = None,
-    db_path: Path = DB_PATH,
+    db_path: Optional[Path] = None,
 ) -> None:
     """Record a download for an item."""
     with get_connection(db_path) as conn:
@@ -109,7 +112,7 @@ def record_download(
         )
 
 
-def list_items(limit: int = 100, db_path: Path = DB_PATH) -> List[sqlite3.Row]:
+def list_items(limit: int = 100, db_path: Optional[Path] = None) -> List[sqlite3.Row]:
     """Return a list of items ordered by ``added_at`` descending."""
     with get_connection(db_path) as conn:
         cur = conn.execute(
@@ -121,7 +124,9 @@ def list_items(limit: int = 100, db_path: Path = DB_PATH) -> List[sqlite3.Row]:
         return cur.fetchall()
 
 
-def list_items_today(limit: int = 100, db_path: Path = DB_PATH) -> List[sqlite3.Row]:
+def list_items_today(
+    limit: int = 100, db_path: Optional[Path] = None
+) -> List[sqlite3.Row]:
     """Return today's items ordered by ``added_at`` descending."""
     with get_connection(db_path) as conn:
         cur = conn.execute(
@@ -136,7 +141,7 @@ def list_items_today(limit: int = 100, db_path: Path = DB_PATH) -> List[sqlite3.
         return cur.fetchall()
 
 
-def list_ratings(item_id: str, db_path: Path = DB_PATH) -> List[sqlite3.Row]:
+def list_ratings(item_id: str, db_path: Optional[Path] = None) -> List[sqlite3.Row]:
     """Return all ratings for a given ``item_id``."""
     with get_connection(db_path) as conn:
         cur = conn.execute(

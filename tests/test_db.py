@@ -15,3 +15,18 @@ def test_db_insert_and_query(monkeypatch, tmp_path):
     ratings = db.list_ratings("vid1", db_path=db_path)
     assert ratings
     assert ratings[0]["rating"] == 7
+
+
+def test_db_path_env_var(monkeypatch, tmp_path):
+    path = tmp_path / "env.db"
+    monkeypatch.setenv("CURATOR_DB_PATH", str(path))
+    import importlib
+    import curator.db as db_module
+    db_module = importlib.reload(db_module)
+
+    db_module.init_db()
+    db_module.insert_item("env1", "t", "d", 1, "u")
+
+    assert path.exists()
+    items = db_module.list_items()
+    assert items and items[0]["id"] == "env1"
